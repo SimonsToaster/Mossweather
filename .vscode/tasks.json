@@ -1,0 +1,48 @@
+{
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "C/C++: avr-gcc.exe Aktive Datei kompilieren",
+            "command": "C:/Users/simon/.platformio/packages/toolchain-atmelavr/bin/avr-gcc.exe",
+            "args": [
+                "-g",
+                "${file}",
+                "-o",
+                "${fileDirname}\\${fileBasenameNoExtension}.exe",
+                "-mmcu=atmega328p"
+            ],
+            "options": {
+                "cwd": "C:/Users/simon/.platformio/packages/toolchain-atmelavr/bin"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build",
+            "detail": "Vom Debugger generierte Aufgabe."
+        },
+        {
+            "type": "cppbuild",
+            "label": "C/C++: avr-gcc.exe Aktive Datei kompilieren ver(1)",
+            "command": "C:/Users/simon/.platformio/packages/toolchain-atmelavr/bin/avr-gcc.exe",
+            "args": [
+                "-g",
+                "${file}",
+                "-o",
+                "${fileDirname}\\${fileBasenameNoExtension}.exe",
+                "-mmcu=atmega328p"
+            ],
+            "options": {
+                "cwd": "C:/Users/simon/.platformio/packages/toolchain-atmelavr/bin"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "Vom Debugger generierte Aufgabe."
+        }
+    ],
+    "version": "2.0.0"
+}
