@@ -77,18 +77,6 @@ void Going_To_Sleep()
 }
 
 //Math functions
-int average(int sum, int df)
-{
-  int av = sum / df;
-  return av;
-}
-
-int standarddeviation(int sum, int av, int df)
-{
-  int std = sqrt(1/(df-1)*(sq(av)+df*sq(av)));
-  return std;
-}
-
 long a_average(long array[])
 {
   long sum_av = 0;
@@ -152,8 +140,10 @@ void myCAMSaveToSDFile()
     return;
   }
   //Construct a file name
-  k = k + 1;
-  itoa(k, str, 10);
+  long pictime = rtc.now().unixtime();
+
+  // k = k + 1;
+  itoa(pictime, str, 10);
   strcat(str, ".jpg");
   //Open the new file
   outFile = SD.open(str, O_WRITE | O_CREAT | O_TRUNC);
@@ -590,114 +580,6 @@ void loop()
   float av_rad_dwn = a_average(a_rad_dwn);
   float std_rad_dwn = a_std(a_rad_dwn);
 
-  //Taking measurements - Commented out because solution based on arrays is built
-  /*
-  long sum_pres = 0;
-  int sum_temp_grnd = 0;
-  int sum_hum_grnd = 0;
-  int sum_temp_surf = 0;
-  int sum_hum_surf = 0;
-  int sum_temp_air = 0;
-  int sum_hum_air = 0;
-  long sum_rad_up = 0;
-  long sum_rad_dwn = 0;
-
-  int iterations = log_time/10;
-
-  for (int i = 0; i < iterations; i++)
-  {
-
-    tcaselect(0);
-    bmp.setSampling(Adafruit_BMP280::MODE_FORCED,
-                    Adafruit_BMP280::SAMPLING_NONE,
-                    Adafruit_BMP280::SAMPLING_X16,
-                    Adafruit_BMP280::FILTER_X16,
-                    Adafruit_BMP280::STANDBY_MS_500);
-    sum_pres = sum_pres + (bmp.readPressure()*1000);
-    Serial.print("Sum_pres: ");
-    Serial.println(sum_pres);
-
-    tcaselect(1);
-    sum_temp_grnd = sum_temp_grnd + (sht31_grnd.readTemperature()*1000);
-    Serial.print("sum_temp_grnd: ");
-    Serial.println(sum_temp_grnd);
-    sum_hum_grnd = sum_hum_grnd + (sht31_grnd.readHumidity()*100);
-    Serial.print("sum_hum_grnd: ");
-    Serial.println(sum_hum_grnd);
-
-    tcaselect(2);
-    sum_temp_surf = sum_temp_surf + (sht31_surf.readTemperature()*1000);
-    Serial.print("sum_temp_surf: ");
-    Serial.println(sum_temp_surf);
-    sum_hum_surf = sum_hum_surf + (sht31_surf.readHumidity()*100);
-    Serial.print("sum_hum_surf: ");
-    Serial.println(sum_hum_surf);
-
-    tcaselect(3);
-    sum_temp_air = sum_temp_air + (sht31_air.readTemperature()*1000);
-    Serial.print("sum_temp_air: ");
-    Serial.println(sum_temp_air);
-    sum_hum_air = sum_hum_air + (sht31_air.readHumidity()*100);
-    Serial.print("sum_hum_air: ");
-    Serial.println(sum_hum_air);
-
-    tcaselect(4);
-    sum_rad_up = sum_rad_up + tsl_up.getLuminosity(2);
-    Serial.print("sum_rad_up: ");
-    Serial.println(sum_rad_up);
-
-    tcaselect(5);
-    sum_rad_dwn = sum_rad_dwn + tsl_dwn.getLuminosity(2);
-    Serial.print("sum_rad_up: ");
-    Serial.println(sum_rad_dwn);
-
-    delay(10000);
-  }
-
-  */
-  /*
-  long av_pres_int = sum_pres / iterations;
-  long std_pres_int = sqrt(1 / (iterations - 1) * (sq(sum_pres) - iterations * sq(av_pres_int)));
-  float av_pres = av_pres_int / 1000.0;
-  float std_pres = std_pres_int / 1000.0;
-
-  int av_temp_grnd_int = average(sum_temp_grnd, iterations);
-  int std_temp_grnd_int = standarddeviation(sum_temp_grnd, av_temp_grnd_int, iterations);
-  float av_temp_grnd = av_temp_grnd_int / 1000.0;
-  float std_temp_grnd = std_temp_grnd_int / 1000.0;
-
-  int av_temp_surf_int = average(sum_temp_surf, iterations);
-  int std_temp_surf_int = standarddeviation(sum_temp_surf, av_temp_surf_int, iterations);
-  float av_temp_surf = av_temp_surf_int / 1000.0;
-  float std_temp_surf = std_temp_surf_int / 1000.0;
-
-  int av_temp_air_int = average(sum_temp_air, iterations);
-  int std_temp_air_int = standarddeviation(sum_temp_air, av_temp_air_int, iterations);
-  float av_temp_air = av_temp_air_int / 1000.0;
-  float std_temp_air = std_temp_air_int / 1000.0;
-
-  int av_hum_grnd_int = average(sum_hum_grnd, iterations);
-  int std_hum_grnd_int = standarddeviation(sum_hum_grnd, av_hum_grnd_int, iterations);
-  float av_hum_grnd = av_hum_grnd_int / 100.0;
-  float std_hum_grnd = std_hum_grnd_int / 100.0;
-
-  int av_hum_surf_int = average(sum_hum_surf, iterations);
-  int std_hum_surf_int = standarddeviation(sum_hum_surf, av_hum_surf_int, iterations);
-  float av_hum_surf = av_hum_surf_int / 100.0;
-  float std_hum_surf = std_hum_surf_int / 100.0;
-
-  int av_hum_air_int = average(sum_hum_air, iterations);
-  int std_hum_air_int = standarddeviation(sum_hum_air, av_hum_air_int, iterations);
-  float av_hum_air = av_hum_air_int / 100.0;
-  float std_hum_air = std_hum_air_int / 100.0;
-
-  long av_rad_up = sum_rad_up / iterations;
-  long std_rad_up = sqrt(1 / (iterations - 1) * (sq(sum_rad_up) - iterations * sq(av_rad_up)));
-
-  long av_rad_dwn = sum_rad_dwn / iterations;
-  long std_rad_dwn = sqrt(1 / (iterations - 1) * (sq(sum_rad_dwn) - iterations * sq(av_rad_dwn)));
-  */
-
   //Precipitation
   tcaselect(6);
   Wire.requestFrom(0b0110010, 3); //check if binary adress is useable
@@ -746,45 +628,45 @@ void loop()
   logfile.print(now.second(), DEC);
   logfile.print('"');
   logfile.print(", ");
-  logfile.print(av_pres);
+  logfile.print(av_pres, 4);
   logfile.print(", ");
-  logfile.print(std_pres);
+  logfile.print(std_pres, 4);
   logfile.print(", ");
-  logfile.print(av_temp_grnd);
+  logfile.print(av_temp_grnd, 4);
   logfile.print(", ");
-  logfile.print(std_temp_grnd);
+  logfile.print(std_temp_grnd, 4);
   logfile.print(", ");
-  logfile.print(av_temp_surf);
+  logfile.print(av_temp_surf, 4);
   logfile.print(", ");
-  logfile.print(std_temp_surf);
+  logfile.print(std_temp_surf, 4);
   logfile.print(", ");
-  logfile.print(av_temp_air);
+  logfile.print(av_temp_air, 4);
   logfile.print(", ");
-  logfile.print(std_temp_air);
+  logfile.print(std_temp_air, 4);
   logfile.print(", ");
-  logfile.print(av_hum_grnd);
+  logfile.print(av_hum_grnd, 4);
   logfile.print(", ");
-  logfile.print(std_hum_grnd);
+  logfile.print(std_hum_grnd, 4);
   logfile.print(", ");
-  logfile.print(av_hum_surf);
+  logfile.print(av_hum_surf, 4);
   logfile.print(", ");
-  logfile.print(std_hum_surf);
+  logfile.print(std_hum_surf, 4);
   logfile.print(", ");
-  logfile.print(av_hum_air);
+  logfile.print(av_hum_air, 4);
   logfile.print(", ");
-  logfile.print(std_hum_air);
+  logfile.print(std_hum_air, 4);
   logfile.print(", ");
-  logfile.print(av_rad_up);
+  logfile.print(av_rad_up, 4);
   logfile.print(", ");
-  logfile.print(std_rad_up);
+  logfile.print(std_rad_up, 4);
   logfile.print(", ");
-  logfile.print(av_rad_dwn);
+  logfile.print(av_rad_dwn, 4);
   logfile.print(", ");
-  logfile.print(std_rad_dwn);
+  logfile.print(std_rad_dwn, 4);
   logfile.print(", ");
-  logfile.print(pre);
+  logfile.print(pre, 4);
   logfile.print(", ");
-  logfile.println(wind_vel);
+  logfile.println(wind_vel, 4);
 
   Serial.print(now.unixtime());
   Serial.print(", ");
@@ -802,45 +684,45 @@ void loop()
   Serial.print(now.second(), DEC);
   Serial.print('"');
   Serial.print(", ");
-  Serial.print(av_pres);
+  Serial.print(av_pres, 4);
   Serial.print(", ");
-  Serial.print(std_pres);
+  Serial.print(std_pres, 4);
   Serial.print(", ");
-  Serial.print(av_temp_grnd);
+  Serial.print(av_temp_grnd, 4);
   Serial.print(", ");
-  Serial.print(std_temp_grnd);
+  Serial.print(std_temp_grnd, 4);
   Serial.print(", ");
-  Serial.print(av_temp_surf);
+  Serial.print(av_temp_surf, 4);
   Serial.print(", ");
-  Serial.print(std_temp_surf);
+  Serial.print(std_temp_surf, 4);
   Serial.print(", ");
-  Serial.print(av_temp_air);
+  Serial.print(av_temp_air, 4);
   Serial.print(", ");
-  Serial.print(std_temp_air);
+  Serial.print(std_temp_air, 4);
   Serial.print(", ");
-  Serial.print(av_hum_grnd);
+  Serial.print(av_hum_grnd, 4);
   Serial.print(", ");
-  Serial.print(std_hum_grnd);
+  Serial.print(std_hum_grnd, 4);
   Serial.print(", ");
-  Serial.print(av_hum_surf);
+  Serial.print(av_hum_surf, 4);
   Serial.print(", ");
-  Serial.print(std_hum_surf);
+  Serial.print(std_hum_surf, 4);
   Serial.print(", ");
-  Serial.print(av_hum_air);
+  Serial.print(av_hum_air, 4);
   Serial.print(", ");
-  Serial.print(std_hum_air);
+  Serial.print(std_hum_air, 4);
   Serial.print(", ");
-  Serial.print(av_rad_up);
+  Serial.print(av_rad_up, 4);
   Serial.print(", ");
-  Serial.print(std_rad_up);
+  Serial.print(std_rad_up, 4);
   Serial.print(", ");
-  Serial.print(av_rad_dwn);
+  Serial.print(av_rad_dwn, 4);
   Serial.print(", ");
-  Serial.print(std_rad_dwn);
+  Serial.print(std_rad_dwn, 4);
   Serial.print(", ");
-  Serial.print(pre);
+  Serial.print(pre, 4);
   Serial.print(", ");
-  Serial.println(wind_vel);
+  Serial.println(wind_vel, 4);
 
   logfile.close();
 
