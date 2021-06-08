@@ -20,8 +20,8 @@ extern "C"
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------
 //Parameters - Control how often data is logged, sampling time, when to take a picture etc
 
-const int log_intervall = 60;          //Time in minutes between logging. Needs to be lower than 240 (4 hours)
-const int log_time = 60;               //Time in seconds for in which the measured quantity should be averaged. Every 10 seconds a measurement is taken. Needs to be between 10 and 300 (5 min)
+const int log_intervall = 1;          //Time in minutes between logging. Needs to be lower than 240 (4 hours)
+const int log_time = 10;               //Time in seconds for in which the measured quantity should be averaged. Every 10 seconds a measurement is taken. Needs to be between 10 and 300 (5 min)
 const int pic_time = 12;               //Hour of the day when the picture is taken. Needs to be between 1 and 24. 
 char filename[] = "LOGFILE.CSV";       //Name of the logfile
 
@@ -32,7 +32,16 @@ const int timerInterruptPin = 18;     //Pin at which the timer of the RTC will s
 const int SD_CS = 10;                 //I think this defines the pin for selecting the SD card for SPI
 const int rst_rain = 2;               //Pins for resetting the rain and wind counters, need to be adjusted.
 const int rst_wind = 4;
-const int SPI_CS = 53;                 //I think this defines the pinfor seleecting the camera for SPI
+const int SPI_CS = 53;                //I think this defines the pinfor seleecting the camera for SPI
+const int rst_16U2 = 19;               
+
+const int unusedDigitalPins[] = { 1,      3,      5,  6,  7,  8,  9,  
+                                     12, 13, 14, 15, 16, 17,        
+                                     22, 23, 24, 25, 26, 27, 28, 29, 30,
+                                 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+                                 41, 42, 43, 44, 45, 46, 47, 48, 49,  
+                                      };
+// 41 unused digital pins
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------
 //Settings for the clock, sensors etc.
@@ -62,17 +71,20 @@ volatile bool timer_set = false;
 void wakeUp()
 {
   sleep_disable(); 
+  Serial.println("Sleep disabled");
   timer_set = false;
 }
 
 //Sleep routine
 void Going_To_Sleep()
 {
-  sleep_enable();                                                             //Enabling sleep mode
-  attachInterrupt(digitalPinToInterrupt(timerInterruptPin), wakeUp, FALLING); //attaching a interrupt to pin d2
-  set_sleep_mode(SLEEP_MODE_PWR_DOWN);                                        //Setting the sleep mode, in our case full sleep
-  delay(1000);                                                                //wait a second to allow the led to be turned off before going to sleep
-  sleep_cpu();                                                                //activating sleep mode
+  attachInterrupt(digitalPinToInterrupt(timerInterruptPin), wakeUp, FALLING); 
+  ADCSRA = 0;                                                                   // Disables ADC
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);                                      
+  sleep_enable(); 
+  Serial.println ("Sleep enabled");                                                             
+  sleep_cpu();                                                                
+  Serial.println("woken up");
   detachInterrupt(digitalPinToInterrupt(timerInterruptPin));
 }
 
@@ -107,94 +119,97 @@ double a_std(long array[])
 }
 
 //ArduCAM takes a picture and saves it to the SD card
-void myCAMSaveToSDFile()
+void myCAMSaveToSDFile(ArduCAM myCAM)
 {
   char str[8];
   byte buf[256];
   static int i = 0;
   static int k = 0;
-  uint8_t temp = 0, temp_last = 0;
+  uint8_t temp = 0,temp_last=0;
   uint32_t length = 0;
   bool is_header = false;
   File outFile;
-  myCAM.clear_bit(ARDUCHIP_GPIO, GPIO_PWDN_MASK);                     //Gets the camera out of sleep mode
-  myCAM.flush_fifo();                                                 //Flush the FIFO
-  myCAM.clear_fifo_flag();                                            //Clear the capture done flag
-  
+
+  myCAM.clear_bit(ARDUCHIP_GPIO, GPIO_PWDN_MASK);
+  delay(1000);
+
+  //Flush the FIFO
+  myCAM.flush_fifo();
+  //Clear the capture done flag
+  myCAM.clear_fifo_flag();
   //Start capture
   myCAM.start_capture();
   Serial.println(F("start Capture"));
-  while (!myCAM.get_bit(ARDUCHIP_TRIG, CAP_DONE_MASK));
-  Serial.println(F("Capture Done."));
+  while(!myCAM.get_bit(ARDUCHIP_TRIG , CAP_DONE_MASK));
+  Serial.println(F("Capture Done."));  
   length = myCAM.read_fifo_length();
   Serial.print(F("The fifo length is :"));
   Serial.println(length, DEC);
-  if (length >= MAX_FIFO_SIZE) //384K
+  if (length >= MAX_FIFO_SIZE) //8M
   {
     Serial.println(F("Over size."));
-    return;
+    return ;
   }
-  if (length == 0) //0 kb
+  if (length == 0 ) //0 kb
   {
     Serial.println(F("Size is 0."));
-    return;
+    return ;
   }
   //Construct a file name
-  long pictime = rtc.now().unixtime();
-
-  // k = k + 1;
-  itoa(pictime, str, 10);
+  k = k + 1;
+  itoa(k, str, 10);
   strcat(str, ".jpg");
   //Open the new file
   outFile = SD.open(str, O_WRITE | O_CREAT | O_TRUNC);
-  if (!outFile)
+  if(!outFile)
   {
     Serial.println(F("File open faild"));
     return;
   }
   myCAM.CS_LOW();
   myCAM.set_fifo_burst();
-  while (length--)
+  while ( length-- )
   {
     temp_last = temp;
-    temp = SPI.transfer(0x00);
+    temp =  SPI.transfer(0x00);
     //Read JPEG data from FIFO
-    if ((temp == 0xD9) && (temp_last == 0xFF)) //If find the end ,break while,
-    {
-      buf[i++] = temp; //save the last  0XD9
-      
-
+    if ( (temp == 0xD9) && (temp_last == 0xFF) ) //If find the end ,break while,
+   {
+     buf[i++] = temp;  //save the last  0XD9     
+      //Write the remain bytes in the buffer
+     myCAM.CS_HIGH();
+      outFile.write(buf, i);    
       //Close the file
       outFile.close();
-      Serial.println(F("Image save OK."));
-      is_header = false;
+     Serial.println(F("Image save OK."));
+     is_header = false;
       i = 0;
-    }
-    if (is_header == true)
-    {
-      //Write image data to buffer if not full
-      if (i < 256)
-        buf[i++] = temp;
-      else
+   }  
+   if (is_header == true)
+   { 
+     //Write image data to buffer if not full
+     if (i < 256)
+       buf[i++] = temp;
+     else
       {
-        //Write 256 bytes image data to file
+       //Write 256 bytes image data to file
         myCAM.CS_HIGH();
         outFile.write(buf, 256);
         i = 0;
         buf[i++] = temp;
         myCAM.CS_LOW();
         myCAM.set_fifo_burst();
-      }
+     }        
     }
-    else if ((temp == 0xD8) & (temp_last == 0xFF))
-    {
-      is_header = true;
+   else if ((temp == 0xD8) & (temp_last == 0xFF))
+   {
+     is_header = true;
       buf[i++] = temp_last;
-      buf[i++] = temp;
-    }
+     buf[i++] = temp;   
+   } 
   }
-  outFile.close();
-  myCAM.set_bit(ARDUCHIP_GPIO, GPIO_PWDN_MASK);             //Sends Camera back to sleep
+  myCAM.set_bit(ARDUCHIP_GPIO, GPIO_PWDN_MASK);
+  delay(1000);
 }
 
 //Allows easy swiching between ports of the multiplexer
@@ -225,7 +240,7 @@ void setup()
 {
 
   //Initializing the RTC
-  Serial.begin(115200);
+  Serial.begin(921600);
   delay(100);
 
   if (!rtc.begin())
@@ -364,28 +379,6 @@ void setup()
   configureSensor();
   Serial.println("tsl_down configured");
 
-  //Checks if entered logging parameters are valid
-
-  if (log_intervall > 240 || log_intervall < 1)
-  {
-    Serial.println("Time between logging events needs to be more than 1 Minute and less than 240 Minutes");
-    while(1);
-  }
-  Serial.println("Logging intervall valid");
-  if (log_time < 10 || log_time > 300)
-  {
-    Serial.println("Logging averaging time needs to be above 10 seconds and below 300 seconds");
-    while(1);
-  }
-  Serial.println("Measuring time valid");
-  if (pic_time < 1 || pic_time > 24)
-  {
-    Serial.println("Time at which the picture will be taken needs to be between 1 and 24");
-    while(1);
-  }
-  Serial.println("Picture time valid");
-  Serial.println("Logging parameters valid");
-
   //Activating counter for rain
   pinMode(rst_rain, INPUT);
   digitalWrite(rst_rain, HIGH);                           //How do pull ups behave when powerd down?
@@ -399,7 +392,7 @@ void setup()
   uint8_t vid, pid;
   uint8_t temp;
   Wire.begin();
-  Serial.println(F("ArduCAM Start!"));
+  Serial.println(F("ArduCAM Start"));
 
   pinMode(SPI_CS, OUTPUT);
   digitalWrite(SPI_CS, HIGH);                             //set the CS as an output:
@@ -465,6 +458,46 @@ void setup()
   delay(1000);
 
   myCAM.set_bit(ARDUCHIP_GPIO, GPIO_PWDN_MASK);         //Sends camera back to sleep
+
+
+
+  //Checks if entered logging parameters are valid
+
+  if (log_intervall > 240 || log_intervall < 1)
+  {
+    Serial.println("Time between logging events needs to be more than 1 Minute and less than 240 Minutes");
+    while(1);
+  }
+  Serial.println("Logging intervall valid");
+  if (log_time < 10 || log_time > 300)
+  {
+    Serial.println("Logging averaging time needs to be above 10 seconds and below 300 seconds");
+    while(1);
+  }
+  Serial.println("Measuring time valid");
+  if (pic_time < 1 || pic_time > 24)
+  {
+    Serial.println("Time at which the picture will be taken needs to be between 1 and 24");
+    while(1);
+  }
+  Serial.println("Picture time valid");
+  Serial.println("Logging parameters valid");
+
+  //Setting Pins to input and high to conserve power
+
+  for(int i = 0; i < 41; i++)
+  {
+    pinMode(unusedDigitalPins[i], OUTPUT);
+    digitalWrite(unusedDigitalPins[i], LOW);
+    Serial.print("Disabled pin: ");
+    Serial.println(unusedDigitalPins[i]);
+  }
+  
+  // Resetting USB-Controller to conserve power - Commented out for development reasons
+  /*
+  pinMode(19, OUTPUT);
+  digitalWrite(19, LOW);
+  */
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -726,11 +759,11 @@ void loop()
 
   logfile.close();
 
-  myCAMSaveToSDFile();
+  myCAMSaveToSDFile(myCAM);
 
   if(now.hour()==pic_time)
   {
-    myCAMSaveToSDFile();
+    myCAMSaveToSDFile(myCAM);
   }
 
   Going_To_Sleep();
